@@ -144,6 +144,7 @@ export function calculateAndSaveApyAutoCompound(id: string, diffSharePrice: BigD
     apyAutoCompound.save()
     vault.apyAutoCompound = apyAutoCompound.apy;
     vault.apy = vault.apyAutoCompound.plus(vault.apyReward)
+    vault.lastApr = apyAutoCompound.apr
     calculateGeneralApy(vault, block);
   }
   return apyAutoCompound.apy

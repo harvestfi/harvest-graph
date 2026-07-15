@@ -12,8 +12,8 @@ export function handleTransfer(event: Transfer): void {
   const vault = Vault.load(event.address.toHex());
   if (vault) {
     if (!isFarmContract(vault.id)) {
-      createUserBalance(event.address, event.params.value, event.params.from, event.transaction, event.block, true)
-      createUserBalance(event.address, event.params.value, event.params.to, event.transaction, event.block, false)
+      createUserBalance(event.address, event.params.value, event.params.from, event.transaction, event.block, false, event.transaction.from.toHexString())
+      createUserBalance(event.address, event.params.value, event.params.to, event.transaction, event.block, true, event.transaction.from.toHexString())
     }
   }
 }

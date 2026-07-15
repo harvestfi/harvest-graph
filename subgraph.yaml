@@ -1,11 +1,11 @@
 specVersion: 0.0.8
 schema:
   file: ./schema.graphql
-#features:
+# features:
 #  - grafting # feature name
-#graft:
-#  base: QmPn9r9yTf4m8sSArfVHJBgWFfRHvEMh7q3Rm4ABPetfXu
-#  block: 22495127
+# graft:
+#  base: QmbeA7R5gPcL6ZXVJh6umReXUrMPY8B37MoZeHMbSiizWN
+#  block: 22669089
 dataSources:
   - kind: ethereum
     name: Storage

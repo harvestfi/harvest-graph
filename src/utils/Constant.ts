@@ -26,6 +26,7 @@ export const TOTAL_TVL_FROM = BigInt.fromString('14522503')
 export const TVL_WARN = BigDecimal.fromString('1000000000');
 export const BD_ONE_TRILLION = BigDecimal.fromString('1000000000')
 
+export const BI_1_HOUR = BigInt.fromI32(3600);
 export const EVERY_24_HOURS = 86400;
 export const BI_EVERY_24_HOURS = BigInt.fromString('86400');
 export const EVERY_7_DAYS = 604800;

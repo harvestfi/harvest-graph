@@ -50,6 +50,11 @@ export function loadOrCreateVault(vaultAddress: Address, block: ethereum.Block, 
     vault.tvl = BigDecimal.zero()
     vault.users = [];
     vault.lastUsersShareTimestamp = BigInt.zero();
+    vault.lastTotalSupply = BigInt.zero();
+    vault.lastApr = BigDecimal.zero();
+    vault.lastDiffTimestamp = BigDecimal.zero();
+    vault.lastDiffSharePrice = BigDecimal.zero();
+    vault.lastVaultSnapshotTs = BigInt.zero();
     vault.save();
     pushVault(vault.id, block)
     const vaultUtils= getVaultUtils();

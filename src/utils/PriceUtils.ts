@@ -73,6 +73,10 @@ export function getPriceForCoin(address: Address, block: number): BigInt {
 export function getPriceByVault(vault: Vault, block: ethereum.Block): BigDecimal {
   let tempPrice = BigDecimal.zero();
 
+  if (block.number.lt(BigInt.fromI32(1002))) {
+    log.log(log.Level.DEBUG, `Found problem block ${block.number}`)
+  }
+
   if (vault.id == I_FARM_TOKEN.toHexString()) {
     const price = getPriceForCoin(getFarmToken(), block.number.toI32())
     if (!price.isZero()) {

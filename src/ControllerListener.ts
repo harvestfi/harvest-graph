@@ -9,6 +9,7 @@ import { loadOrCreateSharePrice } from "./types/SharePrice";
 import { AddVaultAndStrategyCall, SharePriceChangeLog } from '../generated/Storage/ControllerContract';
 import { createUserBalance } from './types/UserBalance';
 import { handlerLogic } from './debug/HandlerCalculator';
+import { createTvl } from './types/Tvl';
 
 
 export function handleSharePriceChangeLog(event: SharePriceChangeLog): void {
@@ -36,6 +37,8 @@ export function handleSharePriceChangeLog(event: SharePriceChangeLog): void {
     if (!lastShareTimestamp.isZero()) {
       const diffSharePrice = sharePrice.newSharePrice.minus(lastSharePrice).divDecimal(pow(BD_TEN, vault.decimal.toI32()))
       const diffTimestamp = timestamp.minus(lastShareTimestamp)
+      vault.lastDiffSharePrice = diffSharePrice
+      vault.lastDiffTimestamp = diffTimestamp.toBigDecimal()
       const apy = calculateAndSaveApyAutoCompound(`${event.transaction.hash.toHex()}-${vaultAddress}`, diffSharePrice, diffTimestamp, vault, event.block)
     }
     vault.lastShareTimestamp = sharePrice.timestamp
@@ -53,6 +56,7 @@ export function handleSharePriceChangeLog(event: SharePriceChangeLog): void {
       vaultHistory.timestamp = event.block.timestamp;
       vaultHistory.save();
     }
+    createTvl(event.params.vault, event.block, event.transaction)
   }
 }
 
@@ -64,3 +68,4 @@ export function handleAddVaultAndStrategy(call: AddVaultAndStrategyCall): void {
   loadOrCreateStrategy(strategyAddress, block)
   loadOrCreateVault(vaultAddress, block, strategyAddress.toHex())
 }
+

@@ -84,6 +84,7 @@ export function createTvl(address: Address, block: ethereum.Block, transaction: 
       vault.tvlSequenceId = vault.tvlSequenceId + 1;
       vault.tvl = tvl.value
       vault.priceUnderlying = priceForVault
+      vault.lastTotalSupply = tvl.totalSupply
       vault.save()
     }
     return tvl;

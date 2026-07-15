@@ -1,6 +1,7 @@
 import { Address, BigDecimal, BigInt, ethereum } from "@graphprotocol/graph-ts";
 import {
   AutoStake,
+  PlasmaVault,
   UserBalance,
   UserBalanceHistory,
   UserProfit,
@@ -16,6 +17,7 @@ import {
   BD_TEN,
   BD_ZERO,
   BI_18,
+  BI_1_HOUR,
   BI_TEN,
   FARM_TOKEN_MAINNET,
   FARM_TOKEN_MATIC,
@@ -25,8 +27,9 @@ import { isIFarm } from "../utils/PlatformUtils";
 import { getTransactionType, UNKNOWN_TRANSACTION_TYPE } from "../utils/UserBalanceUtils";
 import { ERC20 } from '../../generated/Storage/ERC20';
 import { AutoStakeContract } from '../../generated/templates/AutoStakeListner/AutoStakeContract';
+import { fetchPricePerFullShare } from "../utils/VaultUtils";
 
-export function createUserBalance(vaultAddress: Address, amount: BigInt, beneficary: Address, tx: ethereum.Transaction, block: ethereum.Block, isDeposit: boolean): void {
+export function createUserBalance(vaultAddress: Address, amount: BigInt, beneficary: Address, tx: ethereum.Transaction, block: ethereum.Block, isDeposit: boolean, txOrigin: string): void {
   const vault = Vault.load(vaultAddress.toHex())
   // for iFarm we fetch in other function
   if (vault != null && !isIFarm(vault.name)) {
@@ -73,6 +76,13 @@ export function createUserBalance(vaultAddress: Address, amount: BigInt, benefic
     }
     userBalance.poolBalance = poolBalance
     userBalance.vaultBalance = vaultBalance
+
+    if (vault.lastShareTimestamp.plus(BI_1_HOUR).lt(block.timestamp)) {
+      const sharePrice = fetchPricePerFullShare(vaultAddress)
+      vault.lastSharePrice = sharePrice
+      vault.lastShareTimestamp = block.timestamp
+      vault.save()
+    }
 
     const delimiter = pow(BD_TEN, vault.decimal.toI32());
     const sharePriceFormatted = vault.lastSharePrice.divDecimal(delimiter);
@@ -146,14 +156,15 @@ export function createUserBalance(vaultAddress: Address, amount: BigInt, benefic
       userBalance.additionalValues,
       poolBalance,
       vaultBalance,
-      userBalance.underlyingBalance
+      userBalance.underlyingBalance,
+      tx.hash.toHex()
     )
-    createUserTransaction(userTransactionId, vaultAddressString, timestamp, createdAtBlock, userAddress, transactionType, sharePriceBD, amount)
+    createUserTransaction(userTransactionId, vaultAddressString, timestamp, createdAtBlock, userAddress, transactionType, sharePrice, amount, txOrigin)
   }
 }
 
 // only for iFarm
-export function createIFarmUserBalance(vaultAddress: Address, beneficary: Address, tx: ethereum.Transaction, block: ethereum.Block, isDeposit: boolean, amount: BigInt): void {
+export function createIFarmUserBalance(vaultAddress: Address, beneficary: Address, tx: ethereum.Transaction, block: ethereum.Block, isDeposit: boolean, amount: BigInt, txOrigin: string): void {
   const vault = Vault.load(vaultAddress.toHex())
   if (vault != null) {
     const vaultContract = VaultContract.bind(vaultAddress)
@@ -265,9 +276,10 @@ export function createIFarmUserBalance(vaultAddress: Address, beneficary: Addres
       userBalance.additionalValues,
       BigDecimal.zero(),
       BigDecimal.zero(),
-      userBalance.underlyingBalance
+      userBalance.underlyingBalance,
+      tx.hash.toHex()
     )
-    createUserTransaction(userTransactionId, vaultAddressString, timestamp, createdAtBlock, userAddress, transactionType, sharePriceBD, vaultBalance.digits)
+    createUserTransaction(userTransactionId, vaultAddressString, timestamp, createdAtBlock, userAddress, transactionType, sharePrice, vaultBalance.digits, txOrigin)
   }
 }
 
@@ -283,7 +295,8 @@ function createBalanceHistory(
   additionalValues: BigDecimal[],
   poolBalance: BigDecimal,
   vaultBalance: BigDecimal,
-  underlyingBalance: BigDecimal
+  underlyingBalance: BigDecimal,
+  tx: string
   ): void {
   const userBalanceHistory = new UserBalanceHistory(id)
   userBalanceHistory.createAtBlock = createdAtBlock
@@ -298,26 +311,44 @@ function createBalanceHistory(
   userBalanceHistory.poolBalance = poolBalance
   userBalanceHistory.vaultBalance = vaultBalance
   userBalanceHistory.additionalValues = additionalValues
+  userBalanceHistory.tx = tx
   userBalanceHistory.save()
 }
 
-function createUserTransaction(
+export function createUserTransaction(
   tx: string,
   vault: string,
   timestamp: BigInt,
   createdAtBlock: BigInt,
   userAddress: string,
   type: string,
-  sharePrice: BigDecimal,
-  value: BigInt
+  sharePrice: BigInt,
+  value: BigInt,
+  txOrigin: string,
+  isVault: boolean = true
 ): void {
   const userTransaction = new UserTransaction(`${tx}-${vault}-${type}`);
   userTransaction.createAtBlock = createdAtBlock
   userTransaction.timestamp = timestamp
   userTransaction.userAddress = userAddress
-  userTransaction.vault = vault
+  userTransaction.vault = isVault ? vault : null
+  userTransaction.plasmaVault = isVault ? null : vault
   userTransaction.transactionType = type
   userTransaction.sharePrice = sharePrice
+  userTransaction.tx = tx
+  userTransaction.price = BigDecimal.zero();
+  userTransaction.txOrigin = txOrigin;
+  if (isVault) {
+    const vaultEnt = Vault.load(vault)
+    if (vaultEnt != null) {
+      userTransaction.price = vaultEnt.priceUnderlying;
+    }
+  } else {
+    const plasmaVaultEnt = PlasmaVault.load(vault)
+    if (plasmaVaultEnt != null) {
+      userTransaction.price = plasmaVaultEnt.priceUnderlying;
+    }
+  }
   userTransaction.value = value
   userTransaction.save()
 }
